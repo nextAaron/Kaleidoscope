@@ -1,6 +1,5 @@
 #include <iostream>
 #include <map>
-#include <string>
 #include <vector>
 
 //Lexer
@@ -65,8 +64,9 @@ namespace {
 	};
 
 	class NumberExprAST : public ExprAST {//numeric literals
+		double Val;
 	public:
-		NumberExprAST(double val) {}
+		NumberExprAST(double val) : Val(val) {}
 	};
 
 	class VariableExprAST : public ExprAST {//variable references
@@ -76,8 +76,10 @@ namespace {
 	};
 
 	class BinaryExprAST : public ExprAST {//binary operators
+		char Op;
+		ExprAST *LHS, *RHS;
 	public:
-		BinaryExprAST(char op, ExprAST* lhs, ExprAST* rhs) {}
+		BinaryExprAST(char op, ExprAST *lhs, ExprAST *rhs) : Op(op), LHS(lhs), RHS(rhs) {}
 	};
 
 	class CallExprAST : public ExprAST {
@@ -95,8 +97,10 @@ namespace {
 	};
 
 	class FunctionAST {//function definition/implementation
+		PrototypeAST *Proto;
+		ExprAST *Body;
 	public:
-		FunctionAST(PrototypeAST* proto, ExprAST* body) {}
+		FunctionAST(PrototypeAST *proto, ExprAST *body) : Proto(proto), Body(body) {}
 	};
 }
 
@@ -120,13 +124,13 @@ void Error(const std::string& Str) {
 	std::cerr << "Error: " << Str << std::endl;
 }
 
-static ExprAST* ParseExpression();
+static ExprAST *ParseExpression();
 
-/* identifierexpr
+/*identifierexpr
 		::= identifier
-		::= identifier '(' expression* ')'
+		::= identifier '(' expression *')'
  */
-static ExprAST* ParseIdentifierExpr() {
+static ExprAST *ParseIdentifierExpr() {
 	std::string IdName = IdentifierStr;
 	getNextToken();
 	if (CurTok != '(')
@@ -151,11 +155,11 @@ static ExprAST* ParseIdentifierExpr() {
 	return new CallExprAST(IdName, Args);
 }
 
-/* numberexpr
+/*numberexpr
 		::= number
  */
-static ExprAST* ParseNumberExpr() {
-	ExprAST* Result = new NumberExprAST(NumVal);
+static ExprAST *ParseNumberExpr() {
+	ExprAST *Result = new NumberExprAST(NumVal);
 	getNextToken();
 	return Result;
 }
@@ -163,9 +167,9 @@ static ExprAST* ParseNumberExpr() {
 /*parenexpr
 		::=
  */
-static ExprAST* ParseParenExpr() {
+static ExprAST *ParseParenExpr() {
 	getNextToken();//eat '('
-	ExprAST* V = ParseExpression();
+	ExprAST *V = ParseExpression();
 	if (!V)
 		return 0;
 	if (CurTok != ')') {
@@ -181,7 +185,7 @@ static ExprAST* ParseParenExpr() {
 		::= numberexpr
 		::= parenexpr
  */
-static ExprAST* ParsePrimary() {
+static ExprAST *ParsePrimary() {
 	switch (CurTok) {
 		case tok_identifier:
 			return ParseIdentifierExpr();
@@ -198,7 +202,7 @@ static ExprAST* ParsePrimary() {
 /*binoprhs
 		::= ('+' primary)*
  */
-static ExprAST* ParseBinOpRHS(int ExprPrec, ExprAST* LHS) {
+static ExprAST *ParseBinOpRHS(int ExprPrec, ExprAST *LHS) {
 	while (true) {
 		int TokPrec = GetTokPrecedence();
 		if (TokPrec < ExprPrec)
@@ -209,17 +213,17 @@ static ExprAST* ParseBinOpRHS(int ExprPrec, ExprAST* LHS) {
 /*expression
 		::= primary binoprhs
  */
-static ExprAST* ParseExpression() {
-	ExprAST* LHS = ParsePrimary();
+static ExprAST *ParseExpression() {
+	ExprAST *LHS = ParsePrimary();
 	if (!LHS)
 		return 0;
 	return ParseBinOpRHS(0, LHS);
 }
 
 /*prototype
-		::= id '(' id* ')'
+		::= id '(' id *')'
  */
-static PrototypeAST* ParsePrototype() {
+static PrototypeAST *ParsePrototype() {
 	if (CurTok != tok_identifier) {
 		Error("expected function name in protytype");
 		return 0;
@@ -247,12 +251,12 @@ static PrototypeAST* ParsePrototype() {
 /*definition
 		::= "def" prototype expression
  */
-static FunctionAST* ParseDefinition() {
+static FunctionAST *ParseDefinition() {
 	getNextToken();//eat "def"
-	PrototypeAST* Proto = ParsePrototype();
+	PrototypeAST *Proto = ParsePrototype();
 	if (Proto == 0)
 		return 0;
-	if (ExprAST* E = ParseExpression())
+	if (ExprAST *E = ParseExpression())
 		return new FunctionAST(Proto, E);
 	return 0;
 }
@@ -260,9 +264,9 @@ static FunctionAST* ParseDefinition() {
 /*toplevelexpr
 		::= expression
  */
-static FunctionAST* ParseTopLevelExpr() {
-	if (ExprAST* E = ParseExpression()) {
-		PrototypeAST* Proto = new PrototypeAST("", std::vector<std::string>());
+static FunctionAST *ParseTopLevelExpr() {
+	if (ExprAST *E = ParseExpression()) {
+		PrototypeAST *Proto = new PrototypeAST("", std::vector<std::string>());
 		return new FunctionAST(Proto, E);
 	}
 	return 0;
@@ -271,7 +275,7 @@ static FunctionAST* ParseTopLevelExpr() {
 /*external
 		::= "extern" prototype
  */
-static PrototypeAST* ParseExtern() {
+static PrototypeAST *ParseExtern() {
 	getNextToken();//eat "extern"
 	return ParsePrototype();
 }
@@ -298,7 +302,7 @@ static void HandleTopLevelExpression() {
 		getNextToken();
 }
 
-/* top
+/*top
 		:: = definition | external | expression | ';'
  */
 static void MainLoop() {

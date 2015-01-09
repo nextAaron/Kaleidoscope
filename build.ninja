@@ -1,0 +1,24 @@
+cxx = g++-4.9
+builddir = build
+
+flags = -pedantic -Wall -Wextra -Ofast -march=native -pipe -ggdb3
+cxxflags = -std=c++14
+ldflags = -flto
+
+pool cxx_pool
+  depth = 4
+
+rule cxx
+  deps = gcc
+  depfile = $out.d
+  command = $cxx -MMD -MF $depfile $cxxflags $in -c -o $out
+  pool = cxx_pool
+
+rule link
+  command = $cxx $in -o $out $ldflags
+
+build $builddir/toy.o: cxx toy.cpp
+
+build $builddir/toy.exe: link $builddir/toy.o
+
+default $builddir/toy.exe
