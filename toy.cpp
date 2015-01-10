@@ -1,5 +1,8 @@
 #include <iostream>
 #include <map>
+#ifdef _MSC_VER
+#include <string>
+#endif
 #include <vector>
 
 //Lexer
@@ -308,11 +311,12 @@ static void HandleTopLevelExpression() {
 static void MainLoop() {
 	while (true) {
 		std::cerr << "ready> ";
+		getNextToken();
 		switch (CurTok) {
 			case tok_eof:
 				return;
 			case ';':
-				getNextToken();
+				//getNextToken();
 				break;
 			case tok_def:
 				HandleDefinition();
@@ -334,8 +338,8 @@ int main() {
 	BinopPrecedence['*'] = 40;
 
 	//Prime the first token
-	std::cerr << "ready> ";
-	getNextToken();
+	//std::cerr << "ready> ";
+	//getNextToken();
 
 	MainLoop();
 	return 0;
