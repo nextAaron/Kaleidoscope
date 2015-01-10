@@ -69,13 +69,13 @@ namespace {
 	class NumberExprAST : public ExprAST {//numeric literals
 		double Val;
 	public:
-		NumberExprAST(double val) : Val(val) {}
+		explicit NumberExprAST(double val) : Val(val) {}
 	};
 
 	class VariableExprAST : public ExprAST {//variable references
 		std::string Name;
 	public:
-		VariableExprAST(const std::string& name) : Name(name) {}
+		explicit VariableExprAST(const std::string& name) : Name(name) {}
 	};
 
 	class BinaryExprAST : public ExprAST {//binary operators
@@ -145,13 +145,13 @@ static ExprAST *ParseIdentifierExpr() {
 	while (CurTok != ')') {
 		ExprAST *Arg = ParseExpression();
 		if (!Arg)
-			return 0;
+			return nullptr;
 		Args.push_back(Arg);
 		if (CurTok == ',')
 			getNextToken();
 		else if (CurTok != ')') {
 			Error("Expect ')' or ',' in argument list");
-			return 0;
+			return nullptr;
 		}
 	}
 	getNextToken();//eat ')'
@@ -174,10 +174,10 @@ static ExprAST *ParseParenExpr() {
 	getNextToken();//eat '('
 	ExprAST *V = ParseExpression();
 	if (!V)
-		return 0;
+		return nullptr;
 	if (CurTok != ')') {
 		Error("expected ')'");
-		return 0;
+		return nullptr;
 	}
 	getNextToken();//eat ')'
 	return V;
@@ -198,7 +198,7 @@ static ExprAST *ParsePrimary() {
 			return ParseParenExpr();
 		default:
 			Error("unknown token when expecting an expression");
-			return 0;
+			return nullptr;
 	}
 }
 
@@ -210,6 +210,22 @@ static ExprAST *ParseBinOpRHS(int ExprPrec, ExprAST *LHS) {
 		int TokPrec = GetTokPrecedence();
 		if (TokPrec < ExprPrec)
 			return LHS;
+		
+		char BinOp = CurTok;
+		getNextToken();
+
+		ExprAST *RHS = ParsePrimary();
+		if (!RHS)
+			return nullptr;
+
+		int NextPrec = GetTokPrecedence();
+		if (TokPrec < NextPrec) {
+			RHS = ParseBinOpRHS(TokPrec + 1, RHS);
+			if (!RHS)
+				return nullptr;
+		}
+
+		LHS = new BinaryExprAST(BinOp, LHS, RHS);
 	}
 }
 
@@ -219,7 +235,7 @@ static ExprAST *ParseBinOpRHS(int ExprPrec, ExprAST *LHS) {
 static ExprAST *ParseExpression() {
 	ExprAST *LHS = ParsePrimary();
 	if (!LHS)
-		return 0;
+		return nullptr;
 	return ParseBinOpRHS(0, LHS);
 }
 
@@ -229,14 +245,14 @@ static ExprAST *ParseExpression() {
 static PrototypeAST *ParsePrototype() {
 	if (CurTok != tok_identifier) {
 		Error("expected function name in protytype");
-		return 0;
+		return nullptr;
 	}
 
 	std::string FnName = IdentifierStr;
 	getNextToken();
 	if (CurTok != '(') {
 		Error("expected '(' in prototype");
-		return 0;
+		return nullptr;
 	}
 
 	std::vector<std::string> ArgNames;
@@ -244,7 +260,7 @@ static PrototypeAST *ParsePrototype() {
 		ArgNames.push_back(IdentifierStr);
 	if (CurTok != ')') {
 		Error("expected ')' in prototype");
-		return 0;
+		return nullptr;
 	}
 
 	getNextToken();//eat ')'
@@ -257,11 +273,11 @@ static PrototypeAST *ParsePrototype() {
 static FunctionAST *ParseDefinition() {
 	getNextToken();//eat "def"
 	PrototypeAST *Proto = ParsePrototype();
-	if (Proto == 0)
-		return 0;
+	if (Proto == nullptr)
+		return nullptr;
 	if (ExprAST *E = ParseExpression())
 		return new FunctionAST(Proto, E);
-	return 0;
+	return nullptr;
 }
 
 /*toplevelexpr
@@ -272,7 +288,7 @@ static FunctionAST *ParseTopLevelExpr() {
 		PrototypeAST *Proto = new PrototypeAST("", std::vector<std::string>());
 		return new FunctionAST(Proto, E);
 	}
-	return 0;
+	return nullptr;
 }
 
 /*external
