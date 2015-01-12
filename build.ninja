@@ -1,9 +1,10 @@
-cxx = g++-4.9
+cxx = g++
 builddir = build
 
-flags = -pedantic -Wall -Wextra -Ofast -march=native -pipe -ggdb3
+flags = -pedantic -Wall -Wextra -Ofast -march=native -pipe -ggdb3 -D NDEBUG
 cxxflags = -std=c++14
 ldflags = -flto
+llvmcorelibs = -l LLVMCore -l LLVMSupport -l DbgHelp
 
 pool cxx_pool
   depth = 4
@@ -20,5 +21,6 @@ rule link
 build $builddir/toy.o: cxx toy.cpp
 
 build $builddir/toy.exe: link $builddir/toy.o
+  ldflags = $ldflags $llvmcorelibs
 
 default $builddir/toy.exe
