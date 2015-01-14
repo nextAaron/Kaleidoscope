@@ -9,12 +9,15 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Value.h>
+#include <llvm/IR/Verifier.h>
 
 //Lexer
 enum Token {
 	tok_eof = -1,
+	//commands
 	tok_def = -2,
 	tok_extern = -3,
+	//primary
 	tok_identifier = -4,
 	tok_number = -5
 };
@@ -389,43 +392,75 @@ llvm::Function* PrototypeAST::Codegen() {
 			Error("redefinition of function with different # args");
 			return nullptr;
 		}
-		unsigned Idx = 0;
-		for (llvm::Function::arg_iterator AI = F->arg_begin(); Idx != Args.size(); ++AI) {
-			AI->setName(Args[Idx]);
-
-			// Add arguments to variable symbol table.
-			NamedValues[Args[Idx]] = AI;
-			++Idx;
-		}
 	}
+	unsigned Idx = 0;
+	for (llvm::Function::arg_iterator AI = F->arg_begin(); Idx != Args.size(); ++AI) {
+		AI->setName(Args[Idx]);
+
+		// Add arguments to variable symbol table.
+		NamedValues[Args[Idx]] = AI;
+		++Idx;
+	}
+
 	return F;
 }
 
 llvm::Function* FunctionAST::Codegen() {
 	NamedValues.clear();
 	llvm::Function* TheFunction = Proto->Codegen();
-	return TheFunction;
+	if (!TheFunction)
+		return nullptr;
+
+	//Create a new basic block to start insertion
+	llvm::BasicBlock* BB = llvm::BasicBlock::Create(llvm::getGlobalContext(), "entry", TheFunction);
+	Builder.SetInsertPoint(BB);
+
+	if (llvm::Value* RetVal = Body->Codegen()) {
+		//Finish off the function
+		Builder.CreateRet(RetVal);
+		//Validate the generated code, checking for consistency
+		llvm::verifyFunction(*TheFunction);
+		return TheFunction;
+	}
+	//Error reading body, remove function
+	TheFunction->eraseFromParent();
+	return nullptr;
 }
 
 //Top-Level Parsing
 static void HandleDefinition() {
-	if (ParseDefinition())
+	if (FunctionAST* F = ParseDefinition()) {
 		std::cerr << "function definition parsed" << std::endl;
-	else
-		getNextToken();
+		if (llvm::Function* LF = F->Codegen()) {
+			std::cerr << "read function definition" << std::endl;
+			LF->dump();
+		} else {
+			//Skip token for error recovery
+			getNextToken();
+		}
+	}
 }
 
 static void HandleExtern() {
-	if (ParseExtern())
+	if (PrototypeAST* P = ParseExtern()) {
 		std::cerr << "extern parsed" << std::endl;
-	else
+		if (llvm::Function* F = P->Codegen()) {
+			std::cerr << "read extern" << std::endl;
+			F->dump();
+		}
+	} else
 		getNextToken();
 }
 
 static void HandleTopLevelExpression() {
-	if (ParseTopLevelExpr())
+	//Evaluate a top-level expression into an anonymous function
+	if (FunctionAST* F = ParseTopLevelExpr()) {
 		std::cerr << "top-level expr parsed" << std::endl;
-	else
+		if (llvm::Function* LF = F->Codegen()) {
+			std::cerr << "read top-level expr" << std::endl;
+			LF->dump();
+		}
+	} else
 		getNextToken();
 }
 
