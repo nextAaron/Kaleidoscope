@@ -1,15 +1,25 @@
 #include <iostream>
 #include <map>
+#include <memory>
 #ifdef _MSC_VER
 #include <string>
 #endif
 #include <vector>
 
 #include <llvm/ADT/APFloat.h>
+#include <llvm/Analysis/Passes.h>
+#include <llvm/ExecutionEngine/ExecutionEngine.h>
+#include <llvm/ExecutionEngine/MCJIT.h>
+//#include <llvm/ExecutionEngine/Interpreter.h>
+#include "llvm/ExecutionEngine/SectionMemoryManager.h"
+#include <llvm/IR/DataLayout.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
-#include <llvm/IR/Value.h>
+#include <llvm/IR/LegacyPassManager.h>
+//#include <llvm/IR/Value.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Transforms/Scalar.h>
 
 //Lexer
 enum Token {
@@ -321,6 +331,7 @@ static PrototypeAST* ParseExtern() {
 static llvm::Module* TheModule;
 static llvm::IRBuilder<> Builder(llvm::getGlobalContext());
 static std::map<std::string, llvm::Value*> NamedValues;
+static llvm::legacy::FunctionPassManager* TheFPM;
 
 llvm::Value* NumberExprAST::Codegen() {
 	return llvm::ConstantFP::get(llvm::getGlobalContext(), llvm::APFloat(Val));
@@ -420,6 +431,8 @@ llvm::Function* FunctionAST::Codegen() {
 		Builder.CreateRet(RetVal);
 		//Validate the generated code, checking for consistency
 		llvm::verifyFunction(*TheFunction);
+		//Optimize the function
+		TheFPM->run(*TheFunction);
 		return TheFunction;
 	}
 	//Error reading body, remove function
@@ -428,6 +441,8 @@ llvm::Function* FunctionAST::Codegen() {
 }
 
 //Top-Level Parsing
+static llvm::ExecutionEngine* TheExecutionEngine;
+
 static void HandleDefinition() {
 	if (FunctionAST* F = ParseDefinition()) {
 		std::cerr << "function definition parsed" << std::endl;
@@ -459,6 +474,12 @@ static void HandleTopLevelExpression() {
 		if (llvm::Function* LF = F->Codegen()) {
 			std::cerr << "read top-level expr" << std::endl;
 			LF->dump();
+			TheExecutionEngine->finalizeObject();
+			//JIT the function
+			void* FPtr = TheExecutionEngine->getPointerToFunction(LF);
+			//cast to the right type to call
+			double (*FP)() = (double (*)())(intptr_t)FPtr;
+			std::cerr << "evaluted to " << FP() << std::endl;
 		}
 	} else
 		getNextToken();
@@ -490,6 +511,9 @@ static void MainLoop() {
 }
 
 int main() {
+	LLVMInitializeNativeTarget();
+	LLVMInitializeNativeAsmPrinter();
+	LLVMInitializeNativeAsmParser();
 	llvm::LLVMContext& Context = llvm::getGlobalContext();
 
 	//Install standard binary operators
@@ -502,10 +526,47 @@ int main() {
 	//std::cerr << "ready> ";
 	//getNextToken();
 	
-	TheModule = new llvm::Module("my cool jit", Context);
+	auto Owner = std::make_unique<llvm::Module>("my cool jit", Context);
+	TheModule = Owner.get();
+
+	//Create the JIT
+	std::string ErrStr;
+	//auto Manager = std::make_unique<llvm::SectionMemoryManager>();
+	//auto TheManager = Manager.get();
+	TheExecutionEngine = llvm::EngineBuilder(TheModule).setErrorStr(&ErrStr).create();
+	//		.setJITMemoryManager(TheManager).create();
+	if (!TheExecutionEngine) {
+		std::cerr << "cannot create ExecuteEngine: " << ErrStr << std::endl;
+		exit(1);
+	}
+
+	TheModule->setDataLayout(TheExecutionEngine->getDataLayout());
+
+	//Set up the optimizer pipeline
+	llvm::legacy::FunctionPassManager OurFPM(TheModule);
+	//Start with registering info about how the target lays out data structures
+	OurFPM.add(new llvm::DataLayoutPass());
+	//Provide basic AliasAnalysis support for GVN
+	OurFPM.add(llvm::createBasicAliasAnalysisPass());
+	//Do simple "peephole" optimizations and bit-twiddling optimizations
+	OurFPM.add(llvm::createInstructionCombiningPass());
+	//Reassociate expressions
+	OurFPM.add(llvm::createReassociatePass());
+	//Eliminate Common SubExpressions
+	OurFPM.add(llvm::createGVNPass());
+	//Simplify the control flow graph (deleting unreachable blocks, etc)
+	OurFPM.add(llvm::createCFGSimplificationPass());
+
+	OurFPM.doInitialization();
+
+	//Set the global so the code gen can use this
+	TheFPM = &OurFPM;
 
 	MainLoop();
 
+	TheFPM = nullptr;
+
+	//Print out all the generated codes
 	TheModule->dump();
 
 	return 0;

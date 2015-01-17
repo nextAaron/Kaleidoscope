@@ -1,10 +1,15 @@
-cxx = g++
+cxx = g++-4.9
+#cxx = /usr/local/Cellar/llvm/3.5.0_2/bin/clang++
 builddir = build
 
-flags = -pedantic -Wall -Wextra -Ofast -march=native -pipe -ggdb3 -D NDEBUG
+flags = -pedantic -Wall -Wextra -ggdb3
+#-Ofast -march=native -D NDEBUG
 cxxflags = -std=c++14
 ldflags = -flto
-llvmcorelibs = -l LLVMCore -l LLVMSupport -l DbgHelp
+llvmcxxflags = -D __STDC_LIMIT_MACROS -D __STDC_CONSTANT_MACROS -I /usr/local/Cellar/llvm/3.5.0_2/include
+llvmldflags = -L /usr/local/Cellar/llvm/3.5.0_2/lib
+llvmlibs = -l LLVMX86Disassembler -l LLVMX86AsmParser -l LLVMX86CodeGen -l LLVMSelectionDAG -l LLVMAsmPrinter -l LLVMCodeGen -l LLVMScalarOpts -l LLVMInstCombine -l LLVMTransformUtils -l LLVMipa -l LLVMAnalysis -l LLVMX86Desc -l LLVMX86Info -l LLVMX86AsmPrinter -l LLVMX86Utils -l LLVMMCJIT -l LLVMTarget -l LLVMRuntimeDyld -l LLVMObject -l LLVMMCParser -l LLVMBitReader -l LLVMExecutionEngine -l LLVMMC -l LLVMCore -l LLVMSupport
+llvmsystemlibs = -l curses -l z
 
 pool cxx_pool
   depth = 4
@@ -19,8 +24,9 @@ rule link
   command = $cxx $in -o $out $ldflags
 
 build $builddir/toy.o: cxx toy.cpp
+  cxxflags = $cxxflags $llvmcxxflags
 
 build $builddir/toy.exe: link $builddir/toy.o
-  ldflags = $ldflags $llvmcorelibs
+  ldflags = $ldflags $llvmlibs $llvmsystemlibs $llvmldflags
 
 default $builddir/toy.exe
