@@ -6,15 +6,15 @@
 #endif
 #include <vector>
 
+#include <llvm/PassManager.h>
 #include <llvm/ADT/APFloat.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
-//#include <llvm/ExecutionEngine/MCJIT.h>
+#include <llvm/ExecutionEngine/MCJIT.h>
 //#include <llvm/ExecutionEngine/Interpreter.h>
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
 //#include <llvm/IR/Value.h>
 #include <llvm/IR/Verifier.h>
@@ -331,7 +331,7 @@ static PrototypeAST* ParseExtern() {
 static llvm::Module* TheModule;
 static llvm::IRBuilder<> Builder(llvm::getGlobalContext());
 static std::map<std::string, llvm::Value*> NamedValues;
-static llvm::legacy::FunctionPassManager* TheFPM;
+static llvm::FunctionPassManager* TheFPM;
 
 llvm::Value* NumberExprAST::Codegen() {
 	return llvm::ConstantFP::get(llvm::getGlobalContext(), llvm::APFloat(Val));
@@ -548,7 +548,7 @@ int main() {
 	TheModule->setDataLayout(TheExecutionEngine->getDataLayout());
 
 	//Set up the optimizer pipeline
-	llvm::legacy::FunctionPassManager OurFPM(TheModule);
+	llvm::FunctionPassManager OurFPM(TheModule);
 	//Start with registering info about how the target lays out data structures
 	OurFPM.add(new llvm::DataLayoutPass());
 	//Provide basic AliasAnalysis support for GVN
