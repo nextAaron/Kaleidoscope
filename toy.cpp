@@ -9,16 +9,16 @@
 #include <llvm/ADT/APFloat.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
-#include <llvm/ExecutionEngine/MCJIT.h>
+//#include <llvm/ExecutionEngine/MCJIT.h>
 //#include <llvm/ExecutionEngine/Interpreter.h>
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/Module.h>
 #include <llvm/IR/LegacyPassManager.h>
+#include <llvm/IR/Module.h>
 //#include <llvm/IR/Value.h>
 #include <llvm/IR/Verifier.h>
-#include <llvm/Support/TargetSelect.h>
+//#include <llvm/Support/TargetSelect.h>
 #include <llvm/Transforms/Scalar.h>
 
 //Lexer
@@ -72,7 +72,7 @@ static int get_tok() {//return the next token from standard input
 	if (LastChar == EOF)
 		return tok_eof;
 
-	int ThisChar = LastChar;
+	auto ThisChar = LastChar;
 	LastChar = getchar();
 	return ThisChar;
 }
@@ -145,7 +145,7 @@ static std::map<char, int> BinopPrecedence;//
 static int GetTokPrecedence() {//get the precedence of the pending binary operator token
 	if (!isascii(CurTok))
 		return -1;
-	int TokPrec = BinopPrecedence[CurTok];
+	auto TokPrec = BinopPrecedence[CurTok];
 	if (TokPrec <= 0)
 		return -1;
 	return TokPrec;
@@ -162,7 +162,7 @@ static ExprAST* ParseExpression();
 		::= identifier '(' expression* ')'
  */
 static ExprAST* ParseIdentifierExpr() {
-	std::string IdName = IdentifierStr;
+	auto IdName = IdentifierStr;
 	getNextToken();
 	if (CurTok != '(')
 		return new VariableExprAST(IdName);
@@ -171,7 +171,7 @@ static ExprAST* ParseIdentifierExpr() {
 	getNextToken();//eat '('
 	std::vector<ExprAST*> Args;
 	while (CurTok != ')') {
-		ExprAST* Arg = ParseExpression();
+		auto Arg = ParseExpression();
 		if (!Arg)
 			return nullptr;
 		Args.push_back(Arg);
@@ -200,7 +200,7 @@ static ExprAST* ParseNumberExpr() {
  */
 static ExprAST* ParseParenExpr() {
 	getNextToken();//eat '('
-	ExprAST* V = ParseExpression();
+	auto V = ParseExpression();
 	if (!V)
 		return nullptr;
 	if (CurTok != ')') {
@@ -235,18 +235,18 @@ static ExprAST* ParsePrimary() {
  */
 static ExprAST* ParseBinOpRHS(int ExprPrec, ExprAST* LHS) {
 	while (true) {
-		int TokPrec = GetTokPrecedence();
+		auto TokPrec = GetTokPrecedence();
 		if (TokPrec < ExprPrec)
 			return LHS;
 		
 		char BinOp = CurTok;
 		getNextToken();
 
-		ExprAST* RHS = ParsePrimary();
+		auto RHS = ParsePrimary();
 		if (!RHS)
 			return nullptr;
 
-		int NextPrec = GetTokPrecedence();
+		auto NextPrec = GetTokPrecedence();
 		if (TokPrec < NextPrec) {
 			RHS = ParseBinOpRHS(TokPrec + 1, RHS);
 			if (!RHS)
@@ -261,7 +261,7 @@ static ExprAST* ParseBinOpRHS(int ExprPrec, ExprAST* LHS) {
 		::= primary binoprhs
  */
 static ExprAST* ParseExpression() {
-	ExprAST* LHS = ParsePrimary();
+	auto LHS = ParsePrimary();
 	if (!LHS)
 		return nullptr;
 	return ParseBinOpRHS(0, LHS);
@@ -276,7 +276,7 @@ static PrototypeAST* ParsePrototype() {
 		return nullptr;
 	}
 
-	std::string FnName = IdentifierStr;
+	auto FnName = IdentifierStr;
 	getNextToken();
 	if (CurTok != '(') {
 		Error("expected '(' in prototype");
@@ -300,10 +300,10 @@ static PrototypeAST* ParsePrototype() {
  */
 static FunctionAST* ParseDefinition() {
 	getNextToken();//eat "def"
-	PrototypeAST* Proto = ParsePrototype();
+	auto Proto = ParsePrototype();
 	if (Proto == nullptr)
 		return nullptr;
-	if (ExprAST* E = ParseExpression())
+	if (auto E = ParseExpression())
 		return new FunctionAST(Proto, E);
 	return nullptr;
 }
@@ -312,8 +312,8 @@ static FunctionAST* ParseDefinition() {
 		::= expression
  */
 static FunctionAST* ParseTopLevelExpr() {
-	if (ExprAST* E = ParseExpression()) {
-		PrototypeAST* Proto = new PrototypeAST("", std::vector<std::string>());
+	if (auto E = ParseExpression()) {
+		auto Proto = new PrototypeAST("", std::vector<std::string>());
 		return new FunctionAST(Proto, E);
 	}
 	return nullptr;
@@ -338,7 +338,7 @@ llvm::Value* NumberExprAST::Codegen() {
 }
 
 llvm::Value* VariableExprAST::Codegen() {
-	llvm::Value* V = NamedValues[Name];
+	auto V = NamedValues[Name];
 	if (!V) {
 		Error("unknown variable name");
 		return nullptr;
@@ -347,8 +347,8 @@ llvm::Value* VariableExprAST::Codegen() {
 }
 
 llvm::Value* BinaryExprAST::Codegen() {
-	llvm::Value* L = LHS->Codegen();
-	llvm::Value* R = RHS->Codegen();
+	auto L = LHS->Codegen();
+	auto R = RHS->Codegen();
 	if (!L || !R)
 		return nullptr;
 	switch (Op) {
@@ -389,8 +389,8 @@ llvm::Value* CallExprAST::Codegen() {
 
 llvm::Function* PrototypeAST::Codegen() {
 	std::vector<llvm::Type*> Doubles(Args.size(), llvm::Type::getDoubleTy(llvm::getGlobalContext()));
-	llvm::FunctionType* FT = llvm::FunctionType::get(llvm::Type::getDoubleTy(llvm::getGlobalContext()), Doubles, false);
-	llvm::Function* F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule);
+	auto FT = llvm::FunctionType::get(llvm::Type::getDoubleTy(llvm::getGlobalContext()), Doubles, false);
+	auto F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule);
 
 	if (F->getName() != Name) {
 		F->eraseFromParent();
@@ -418,19 +418,19 @@ llvm::Function* PrototypeAST::Codegen() {
 
 llvm::Function* FunctionAST::Codegen() {
 	NamedValues.clear();
-	llvm::Function* TheFunction = Proto->Codegen();
+	auto TheFunction = Proto->Codegen();
 	if (!TheFunction)
 		return nullptr;
 
 	//Create a new basic block to start insertion
-	llvm::BasicBlock* BB = llvm::BasicBlock::Create(llvm::getGlobalContext(), "entry", TheFunction);
+	auto BB = llvm::BasicBlock::Create(llvm::getGlobalContext(), "entry", TheFunction);
 	Builder.SetInsertPoint(BB);
 
-	if (llvm::Value* RetVal = Body->Codegen()) {
+	if (auto RetVal = Body->Codegen()) {
 		//Finish off the function
 		Builder.CreateRet(RetVal);
 		//Validate the generated code, checking for consistency
-		llvm::verifyFunction(*TheFunction);
+		verifyFunction(*TheFunction);
 		//Optimize the function
 		TheFPM->run(*TheFunction);
 		return TheFunction;
@@ -444,9 +444,9 @@ llvm::Function* FunctionAST::Codegen() {
 static llvm::ExecutionEngine* TheExecutionEngine;
 
 static void HandleDefinition() {
-	if (FunctionAST* F = ParseDefinition()) {
+	if (auto F = ParseDefinition()) {
 		std::cerr << "function definition parsed" << std::endl;
-		if (llvm::Function* LF = F->Codegen()) {
+		if (auto LF = F->Codegen()) {
 			std::cerr << "read function definition" << std::endl;
 			LF->dump();
 		} else {
@@ -457,9 +457,9 @@ static void HandleDefinition() {
 }
 
 static void HandleExtern() {
-	if (PrototypeAST* P = ParseExtern()) {
+	if (auto P = ParseExtern()) {
 		std::cerr << "extern parsed" << std::endl;
-		if (llvm::Function* F = P->Codegen()) {
+		if (auto F = P->Codegen()) {
 			std::cerr << "read extern" << std::endl;
 			F->dump();
 		}
@@ -469,9 +469,9 @@ static void HandleExtern() {
 
 static void HandleTopLevelExpression() {
 	//Evaluate a top-level expression into an anonymous function
-	if (FunctionAST* F = ParseTopLevelExpr()) {
+	if (auto F = ParseTopLevelExpr()) {
 		std::cerr << "top-level expr parsed" << std::endl;
-		if (llvm::Function* LF = F->Codegen()) {
+		if (auto LF = F->Codegen()) {
 			std::cerr << "read top-level expr" << std::endl;
 			LF->dump();
 			TheExecutionEngine->finalizeObject();
@@ -528,13 +528,18 @@ int main() {
 	
 	auto Owner = std::make_unique<llvm::Module>("my cool jit", Context);
 	TheModule = Owner.get();
+	if (!TheModule) {
+		Error("failed to create module");
+		return 1;
+	}
 
 	//Create the JIT
 	std::string ErrStr;
-	//auto Manager = std::make_unique<llvm::SectionMemoryManager>();
-	//auto TheManager = Manager.get();
-	TheExecutionEngine = llvm::EngineBuilder(TheModule).setErrorStr(&ErrStr).create();
-	//		.setJITMemoryManager(TheManager).create();
+	llvm::EngineBuilder TheBuilder(TheModule);// std::unique_ptr<llvm::Module>(Owner));
+	llvm::RTDyldMemoryManager* RTDyldMM = new llvm::SectionMemoryManager();
+	TheBuilder.setErrorStr(&ErrStr);
+	TheBuilder.setMCJITMemoryManager(RTDyldMM);
+	TheExecutionEngine = TheBuilder.create();
 	if (!TheExecutionEngine) {
 		std::cerr << "cannot create ExecuteEngine: " << ErrStr << std::endl;
 		exit(1);

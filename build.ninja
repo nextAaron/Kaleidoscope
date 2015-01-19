@@ -1,4 +1,4 @@
-cxx = g++-4.9
+cxx = g++
 #cxx = /usr/local/Cellar/llvm/3.5.0_2/bin/clang++
 builddir = build
 
@@ -6,10 +6,9 @@ flags = -pedantic -Wall -Wextra -ggdb3
 #-Ofast -march=native -D NDEBUG
 cxxflags = -std=c++14
 ldflags = -flto
-llvmcxxflags = -D __STDC_LIMIT_MACROS -D __STDC_CONSTANT_MACROS -I /usr/local/Cellar/llvm/3.5.0_2/include
-llvmldflags = -L /usr/local/Cellar/llvm/3.5.0_2/lib
-llvmlibs = -l LLVMX86Disassembler -l LLVMX86AsmParser -l LLVMX86CodeGen -l LLVMSelectionDAG -l LLVMAsmPrinter -l LLVMCodeGen -l LLVMScalarOpts -l LLVMInstCombine -l LLVMTransformUtils -l LLVMipa -l LLVMAnalysis -l LLVMX86Desc -l LLVMX86Info -l LLVMX86AsmPrinter -l LLVMX86Utils -l LLVMMCJIT -l LLVMTarget -l LLVMRuntimeDyld -l LLVMObject -l LLVMMCParser -l LLVMBitReader -l LLVMExecutionEngine -l LLVMMC -l LLVMCore -l LLVMSupport
-llvmsystemlibs = -l curses -l z
+llvmcxxflags = -D __STDC_LIMIT_MACROS -D __STDC_CONSTANT_MACROS
+llvmlibs = -l LLVMMCJIT -l LLVMRuntimeDyld -l LLVMInterpreter -l LLVMExecutionEngine -l LLVMX86Disassembler -l LLVMX86AsmParser -l LLVMX86CodeGen -l LLVMSelectionDAG -l LLVMAsmPrinter -l LLVMCodeGen -l LLVMScalarOpts -l LLVMInstCombine -l LLVMTransformUtils -l LLVMipa -l LLVMAnalysis -l LLVMTarget -l LLVMX86Desc -l LLVMObject -l LLVMMCParser -l LLVMBitReader -l LLVMCore -l LLVMX86Info -l LLVMX86AsmPrinter -l LLVMMC -l LLVMX86Utils -l LLVMSupport
+llvmsystemlibs = -l z -l ffi -l ncurses -l psapi -l imagehlp
 
 pool cxx_pool
   depth = 4
