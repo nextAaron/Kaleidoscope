@@ -479,7 +479,7 @@ static void HandleTopLevelExpression() {
 			void* FPtr = TheExecutionEngine->getPointerToFunction(LF);
 			//cast to the right type to call
 			double (*FP)() = (double (*)())(intptr_t)FPtr;
-			std::cerr << "evaluted to " << FP() << std::endl;
+			std::cerr << "evaluated to " << FP() << std::endl;
 		}
 	} else
 		getNextToken();
@@ -538,6 +538,8 @@ int main() {
 	llvm::EngineBuilder TheBuilder(TheModule);// std::unique_ptr<llvm::Module>(Owner));
 	llvm::RTDyldMemoryManager* RTDyldMM = new llvm::SectionMemoryManager();
 	TheBuilder.setErrorStr(&ErrStr);
+	//TheBuilder.setEngineKind(llvm::EngineKind::JIT);
+	TheBuilder.setUseMCJIT(true);
 	TheBuilder.setMCJITMemoryManager(RTDyldMM);
 	TheExecutionEngine = TheBuilder.create();
 	if (!TheExecutionEngine) {
@@ -550,7 +552,7 @@ int main() {
 	//Set up the optimizer pipeline
 	llvm::FunctionPassManager OurFPM(TheModule);
 	//Start with registering info about how the target lays out data structures
-	OurFPM.add(new llvm::DataLayoutPass());
+	OurFPM.add(new llvm::DataLayoutPass(TheModule));
 	//Provide basic AliasAnalysis support for GVN
 	OurFPM.add(llvm::createBasicAliasAnalysisPass());
 	//Do simple "peephole" optimizations and bit-twiddling optimizations
