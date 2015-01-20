@@ -10,15 +10,13 @@
 #include <llvm/ADT/APFloat.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
-#include <llvm/ExecutionEngine/MCJIT.h>
-//#include <llvm/ExecutionEngine/Interpreter.h>
+#include <llvm/ExecutionEngine/MCJIT.h>//must include to link properly
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 //#include <llvm/IR/Value.h>
 #include <llvm/IR/Verifier.h>
-//#include <llvm/Support/TargetSelect.h>
 #include <llvm/Transforms/Scalar.h>
 
 //Lexer
@@ -35,7 +33,7 @@ enum Token {
 static std::string IdentifierStr;
 static double NumVal;
 
-static int get_tok() {//return the next token from standard input
+static int get_tok() {//Return the next token from standard input
 	static int LastChar = ' ';
 
 	while (isspace(LastChar))
@@ -79,7 +77,7 @@ static int get_tok() {//return the next token from standard input
 
 //Abstract Syntax Tree
 namespace {
-	class ExprAST {//base class for all expression nodes
+	class ExprAST {//Base class for all expression nodes
 	public:
 		virtual ~ExprAST() {}
 		virtual llvm::Value* Codegen() {
@@ -87,21 +85,21 @@ namespace {
 		}
 	};
 
-	class NumberExprAST : public ExprAST {//numeric literals
+	class NumberExprAST : public ExprAST {//Numeric literals
 		double Val;
 	public:
 		explicit NumberExprAST(double val) : Val(val) {}
 		virtual llvm::Value* Codegen();
 	};
 
-	class VariableExprAST : public ExprAST {//variable references
+	class VariableExprAST : public ExprAST {//Variable references
 		std::string Name;
 	public:
 		explicit VariableExprAST(const std::string& name) : Name(name) {}
 		llvm::Value* Codegen();
 	};
 
-	class BinaryExprAST : public ExprAST {//binary operators
+	class BinaryExprAST : public ExprAST {//Binary operators
 		char Op;
 		ExprAST* LHS;
 		ExprAST* RHS;
@@ -118,7 +116,7 @@ namespace {
 		llvm::Value* Codegen();
 	};
 
-	class PrototypeAST {//function interface
+	class PrototypeAST {//Function interface
 		std::string Name;
 		std::vector<std::string> Args;
 	public:
@@ -126,7 +124,7 @@ namespace {
 		llvm::Function* Codegen();
 	};
 
-	class FunctionAST {//function definition/implementation
+	class FunctionAST {//Function definition/implementation
 		PrototypeAST* Proto;
 		ExprAST* Body;
 	public:
@@ -142,7 +140,7 @@ static int getNextToken() {
 
 static std::map<char, int> BinopPrecedence;//
 
-static int GetTokPrecedence() {//get the precedence of the pending binary operator token
+static int GetTokPrecedence() {//Get the precedence of the pending binary operator token
 	if (!isascii(CurTok))
 		return -1;
 	auto TokPrec = BinopPrecedence[CurTok];
@@ -168,7 +166,7 @@ static ExprAST* ParseIdentifierExpr() {
 		return new VariableExprAST(IdName);
 
 	//Call
-	getNextToken();//eat '('
+	getNextToken();//Eat '('
 	std::vector<ExprAST*> Args;
 	while (CurTok != ')') {
 		auto Arg = ParseExpression();
@@ -182,7 +180,7 @@ static ExprAST* ParseIdentifierExpr() {
 			return nullptr;
 		}
 	}
-	getNextToken();//eat ')'
+	getNextToken();//Eat ')'
 	return new CallExprAST(IdName, Args);
 }
 
@@ -199,7 +197,7 @@ static ExprAST* ParseNumberExpr() {
 		::=
  */
 static ExprAST* ParseParenExpr() {
-	getNextToken();//eat '('
+	getNextToken();//Eat '('
 	auto V = ParseExpression();
 	if (!V)
 		return nullptr;
@@ -207,7 +205,7 @@ static ExprAST* ParseParenExpr() {
 		Error("expected ')'");
 		return nullptr;
 	}
-	getNextToken();//eat ')'
+	getNextToken();//Eat ')'
 	return V;
 }
 
@@ -408,7 +406,7 @@ llvm::Function* PrototypeAST::Codegen() {
 	for (llvm::Function::arg_iterator AI = F->arg_begin(); Idx != Args.size(); ++AI) {
 		AI->setName(Args[Idx]);
 
-		// Add arguments to variable symbol table.
+		//Add arguments to variable symbol table.
 		NamedValues[Args[Idx]] = AI;
 		++Idx;
 	}
@@ -477,7 +475,7 @@ static void HandleTopLevelExpression() {
 			TheExecutionEngine->finalizeObject();
 			//JIT the function
 			void* FPtr = TheExecutionEngine->getPointerToFunction(LF);
-			//cast to the right type to call
+			//Cast to the right type to call
 			double (*FP)() = (double (*)())(intptr_t)FPtr;
 			std::cerr << "evaluated to " << FP() << std::endl;
 		}
@@ -522,10 +520,6 @@ int main() {
 	BinopPrecedence['-'] = 20;
 	BinopPrecedence['*'] = 40;
 
-	//Prime the first token
-	//std::cerr << "ready> ";
-	//getNextToken();
-	
 	auto Owner = std::make_unique<llvm::Module>("my cool jit", Context);
 	TheModule = Owner.get();
 	if (!TheModule) {
