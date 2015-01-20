@@ -478,7 +478,8 @@ static void HandleTopLevelExpression() {
 			//Cast to the right type to call
 			typedef double(*fptr)();
 			auto FP = reinterpret_cast<fptr>(reinterpret_cast<intptr_t>(FPtr));
-			std::cerr << "evaluated to " << FP() << std::endl;
+			auto result = FP();
+			std::cerr << "evaluated to " << result << std::endl;
 		}
 	} else
 		getNextToken();
