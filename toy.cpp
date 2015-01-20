@@ -58,7 +58,7 @@ static int get_tok() {//Return the next token from standard input
 			LastChar = getchar();
 		} while (isdigit(LastChar) || LastChar == '.');
 
-		NumVal = std::stod(NumStr, 0);
+		NumVal = stod(NumStr, 0);
 		return tok_number;
 	}
 
@@ -474,7 +474,7 @@ static void HandleTopLevelExpression() {
 			LF->dump();
 			TheExecutionEngine->finalizeObject();
 			//JIT the function
-			void* FPtr = TheExecutionEngine->getPointerToFunction(LF);
+			auto FPtr = TheExecutionEngine->getPointerToFunction(LF);
 			//Cast to the right type to call
 			double (*FP)() = (double (*)())(intptr_t)FPtr;
 			std::cerr << "evaluated to " << FP() << std::endl;
@@ -494,7 +494,6 @@ static void MainLoop() {
 			case tok_eof:
 				return;
 			case ';':
-				//getNextToken();
 				break;
 			case tok_def:
 				HandleDefinition();
@@ -526,7 +525,9 @@ int main() {
 		Error("failed to create module");
 		return 1;
 	}
-
+#ifdef _WIN32
+	TheModule->setTargetTriple("x86_64-w64-elf");//MCJIT knows elf only
+#endif
 	//Create the JIT
 	std::string ErrStr;
 	llvm::EngineBuilder TheBuilder(TheModule);// std::unique_ptr<llvm::Module>(Owner));
