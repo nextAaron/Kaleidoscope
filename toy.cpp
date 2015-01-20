@@ -476,7 +476,8 @@ static void HandleTopLevelExpression() {
 			//JIT the function
 			auto FPtr = TheExecutionEngine->getPointerToFunction(LF);
 			//Cast to the right type to call
-			double (*FP)() = (double (*)())(intptr_t)FPtr;
+			typedef double(*fptr)();
+			auto FP = reinterpret_cast<fptr>(reinterpret_cast<intptr_t>(FPtr));
 			std::cerr << "evaluated to " << FP() << std::endl;
 		}
 	} else
