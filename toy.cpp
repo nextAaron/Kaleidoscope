@@ -121,7 +121,7 @@ namespace {
 		ExprAST* RHS;
 		char Op;
 	public:
-		BinaryExprAST(char op, ExprAST* lhs, ExprAST* rhs) : Op(op), LHS(lhs), RHS(rhs) {}
+		BinaryExprAST(char op, ExprAST* lhs, ExprAST* rhs) : LHS(lhs), RHS(rhs), Op(op) {}
 		llvm::Value* Codegen();
 	};
 
